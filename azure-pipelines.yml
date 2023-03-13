@@ -1,18 +1,13 @@
 trigger:
-- '*' # All branches, not just main, will trigger pipeline start
+- '*'
 
 pool:
-  vmImage: 'ubuntu-22.04' # Specific VM version
-
-variables:
-  buildConfiguration: 'Release'
+  vmImage: 'ubuntu-22.04'
 
 steps:
-# Install required build tools
 - task: UseDotNet@2
   displayName: 'Use .NET SDK 6.x'
   inputs:
-    packageType: sdk
     version: '6.x'
 
 - task: Npm@1
@@ -20,15 +15,12 @@ steps:
   inputs:
     verbose: false
 
-# node-sass (binds Node.js to Sass - allows compilations of .scss to .css files)
 - script: './node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot'
   displayName: 'Compile Sass assets'
 
-# Minify JavaScript and CSS files.
 - task: gulp@1
   displayName: 'Run gulp tasks'
 
-# Print the date to wwwroot/buildinfo.txt.
 - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
   displayName: 'Write build info'
   workingDirectory: Tailspin.SpaceGame.Web/wwwroot
@@ -45,3 +37,16 @@ steps:
     command: 'build'
     arguments: '--no-restore --configuration Release'
     projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publish the project - Release'
+  inputs:
+    command: 'publish'
+    projects: '**/*.csproj'
+    publishWebProjects: false
+    arguments: '--no-build --configuration Release --output $(Build.ArtifactStagingDirectory)/Release'
+    zipAfterPublish: true
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  condition: succeeded()
